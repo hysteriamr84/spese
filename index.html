@@ -177,13 +177,16 @@ ol.steps{padding-left:20px} ol.steps li{margin:8px 0}
   </div>
   <div class="card">
     <h2>📲 Collega il tuo iPhone</h2>
-    <p class="small muted">Questi dati servono all'automazione di Comandi Rapidi che registra i pagamenti Wallet. Ognuno usa il <b>proprio</b> codice, dal proprio iPhone. Non condividerlo.</p>
-    <div class="small muted">Indirizzo (URL)</div>
-    <div class="code" id="sUrl"></div><button class="copy" data-copy="sUrl">Copia</button>
-    <div class="small muted" style="margin-top:8px">Intestazione <b>apikey</b></div>
-    <div class="code" id="sKey"></div><button class="copy" data-copy="sKey">Copia</button>
-    <div class="small muted" style="margin-top:8px">Il tuo codice (campo <b>token</b>)</div>
-    <div class="code" id="sToken">—</div><button class="copy" data-copy="sToken">Copia</button>
+    <p class="small muted">Il tuo indirizzo personale per Comandi Rapidi. Ognuno usa il <b>proprio</b>, dal proprio iPhone. Non condividerlo.</p>
+    <div class="code" id="sUrl">—</div><button class="copy" data-copy="sUrl">Copia indirizzo</button>
+    <ol class="steps small">
+      <li>Comandi Rapidi → <b>Automazione</b> → <b>+</b> → <b>Transazione</b>. Scegli le carte, poi <b>Esegui immediatamente</b> → <b>Avanti</b> → <b>Nuovo comando vuoto</b>.</li>
+      <li>Aggiungi l'azione <b>Ottieni contenuti dell'URL</b> e incolla l'indirizzo copiato (finisce con <b>&amp;i=</b>).</li>
+      <li>Con il cursore alla fine, tocca la variabile <b>Input comando</b> sopra la tastiera, poi toccala di nuovo e scegli <b>Importo</b>.</li>
+      <li>Scrivi <b>&amp;e=</b> e inserisci di nuovo <b>Input comando</b>, scegliendo <b>Esercente</b>.</li>
+      <li>Fine. Non serve cambiare metodo, intestazioni o altro.</li>
+    </ol>
+    <div class="small muted">Codice personale: <span id="sToken">—</span></div>
     <div style="height:12px"></div>
     <button class="btn ghost" id="sTest">Invia un pagamento di prova (0,01 €)</button>
   </div>
@@ -229,7 +232,7 @@ ol.steps{padding-left:20px} ol.steps li{margin:8px 0}
 <script>
 const SUPABASE_URL = 'https://voogkmnsixjbkidvovmn.supabase.co';
 const SUPABASE_KEY = 'sb_publishable_CPRSQ0Gb5JKG7AZAzZkd8A_hJDYKPM1';
-const RPC_URL = SUPABASE_URL + '/rest/v1/rpc/registra_pagamento';
+const HOOK_URL = SUPABASE_URL + '/functions/v1/pagamento';
 
 const sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY, {
   auth: { persistSession: true, autoRefreshToken: true, storageKey: 'spese-famiglia-auth' }
@@ -486,11 +489,10 @@ $('eDel').onclick = async () => {
 /* ---------- IMPOSTAZIONI ---------- */
 async function renderSettings(){
   $('sMe').textContent = `${S.me.nome} · ${S.me.email}`;
-  $('sUrl').textContent = RPC_URL;
-  $('sKey').textContent = SUPABASE_KEY;
   const { data } = await sb.rpc('mio_token');
   S.myToken = data && data.token;
   $('sToken').textContent = S.myToken || '—';
+  $('sUrl').textContent = S.myToken ? `${HOOK_URL}?t=${S.myToken}&i=` : '—';
   renderCats();
 }
 function renderCats(){
@@ -508,10 +510,9 @@ document.querySelectorAll('[data-copy]').forEach(b => b.onclick = async () => {
   catch { toast('Tieni premuto sul testo per copiarlo'); }
 });
 $('sTest').onclick = async () => {
-  const r = await fetch(RPC_URL, { method: 'POST', headers: { apikey: SUPABASE_KEY, 'Content-Type': 'application/json' },
-    body: JSON.stringify({ token: S.myToken, importo: '0,01 €', esercente: 'Pagamento di prova', carta: 'Test' }) });
+  const r = await fetch(`${HOOK_URL}?t=${S.myToken}&i=${encodeURIComponent('0,01 €')}&e=${encodeURIComponent('Pagamento di prova')}`);
   const j = await r.json().catch(() => ({}));
-  if (r.ok) { toast('Prova registrata ✓ (puoi eliminarla)'); loadMonth(); } else toast('Errore: ' + (j.message || r.status));
+  if (r.ok) { toast('Prova registrata ✓ (puoi eliminarla)'); loadMonth(); } else toast('Errore: ' + (j.errore || r.status));
 };
 
 /* ---------- AVVIO ---------- */
